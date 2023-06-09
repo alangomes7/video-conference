@@ -1,7 +1,5 @@
 import threading
 import socket
-import time
-
 import message as message_manager
 
 # server setup

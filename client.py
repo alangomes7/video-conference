@@ -13,6 +13,7 @@ def client_receive():
     while not stop_client:
         try:
             message_received = message_manager.protocol_message_decoding(socket_client.recv(BUFFER_SIZE))
+            # client actions
             if message_received[2] == "name":
                 message_manager.send_client_message(
                     message_manager.protocol_message_encoding(name, "server", "name", name), socket_client)
@@ -42,7 +43,7 @@ def client_receive():
             if message_received[2] == "connection_error" or message_received[2] == "exit" \
                     or (message_received[2] == "broadcast" and message_received[3] == "server closed"):
                 print_reply(message_received)
-                print("closing server...")
+                print("closing client...")
                 stop_client = True
                 time.sleep(2)  # it needs waiting a little bit more
                 continue
