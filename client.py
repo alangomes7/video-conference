@@ -20,6 +20,7 @@ def client_receive():
                 continue
             if message_received[2] == \
                     "Unknown_operation" or message_received[2] == "echo" or message_received[2] == "broadcast_not_me" \
+                    or message_received[2] == "connection_confirmation" \
                     or (message_received[2] == "broadcast" and message_received[3] != "server closed"):
                 print_reply(message_received)
                 continue
@@ -43,7 +44,7 @@ def client_receive():
             if message_received[2] == "connection_error" or message_received[2] == "exit" \
                     or (message_received[2] == "broadcast" and message_received[3] == "server closed"):
                 print_reply(message_received)
-                print("closing client...")
+                print("Closing client...")
                 stop_client = True
                 time.sleep(2)  # it needs waiting a little bit more
                 continue
@@ -125,6 +126,7 @@ if __name__ == "__main__":
     socket_client.connect((host, port))
     BUFFER_SIZE = 1024
     stop_client = False
+
     my_files = ["File 1", "File 2", "File 3"]
 
     # receive thread

@@ -32,12 +32,13 @@ def receive():
             received_message = message_manager.protocol_message_decoding(socket_client.recv(BUFFER_SIZE))
             print(received_message)
             if username_available(received_message[3]):
-                print("connection is established with: %s" % received_message[3])
+                print("connection is established: (%s) -> %s" % (received_message[3], address))
                 clients_connected[socket_client] = received_message[3]
-                message_data = "You are now connected to the server"
+                message_data = "You are now connected to the server in " + str(address)
                 message_protocol = message_manager.protocol_message_encoding(
                     "server", received_message[3], "connection_confirmation", message_data)
                 message_manager.send_server_message(message_protocol, clients_connected)
+                print("Sent: " + message_protocol.decode('utf-8'))
                 # now using threads to allow multiple connections and actions simultaneously
                 thread = threading.Thread(target=handle_client, args=(socket_client,), daemon=True)
                 thread.start()
