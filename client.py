@@ -28,20 +28,6 @@ def client_receive():
             if message_received[2] == "list_clients":
                 print_reply(message_received)
                 continue
-            if message_received[2] == "list_files":
-                if message_received[3] == "no data":
-                    client_files = "client: " + name + ", files ="
-                    for files in my_files:
-                        client_files += " " + files + ", "
-                    client_files = client_files[:-2]
-                    protocol_message = message_manager.protocol_message_encoding(name, message_received[0],
-                                                                                 "list_files",
-                                                                                 client_files)
-                    message_manager.send_client_message(protocol_message, socket_client)
-                    continue
-                if message_received[3] != "no data":
-                    print_reply(message_received)
-                    continue
             if message_received[2] == "connection_error" or message_received[2] == "exit" \
                     or (message_received[2] == "broadcast" and message_received[3] == "server closed"):
                 print_reply(message_received)
