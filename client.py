@@ -19,7 +19,8 @@ def client_receive():
                     message_manager.protocol_message_encoding(name, "server", "name", name), socket_client)
                 continue
             if message_received[2] == \
-                    "Unknown_operation" or message_received[2] == "echo" or message_received[2] == "broadcast_not_me" \
+                    "Unknown_operation" or message_received[2] == "echo" or message_received[2] == "private_message" \
+                    or message_received[2] == "broadcast_not_me" \
                     or message_received[2] == "connection_confirmation" \
                     or (message_received[2] == "broadcast" and message_received[3] != "server closed"):
                 print_reply(message_received)
@@ -76,9 +77,11 @@ def client_send():
             message = message_manager.protocol_message_encoding(name, name, "echo", message_data)
         if operation == "list clients":
             message = message_manager.protocol_message_encoding(name, "server", "list_clients")
-        if operation == "list files":
-            destination_client = str(input("Input the client to get the list files:\n"))
-            message = message_manager.protocol_message_encoding(name, destination_client, "list_files")
+        if operation == "private message":
+            destination_client = str(input("Input the client to send the private message:\n"))
+            private_message = str(input("Input the private message to %s:\n" % destination_client))
+            message = message_manager.protocol_message_encoding(name, destination_client, "private_message",
+                                                                private_message)
         if operation == "broadcast":
             time_to_wait = 1.3
             broadcast_mode = str(input("Broadcast message except you? y/n\n"))
@@ -126,8 +129,6 @@ if __name__ == "__main__":
     socket_client.connect((host, port))
     BUFFER_SIZE = 1024
     stop_client = False
-
-    my_files = ["File 1", "File 2", "File 3"]
 
     # receive thread
     receive_thread = threading.Thread(target=client_receive)

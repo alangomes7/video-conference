@@ -86,6 +86,13 @@ def handle_client(client):
                 print("Server sends: %s" % protocol_message)
                 message_manager.send_server_message(protocol_message, clients_connected)
                 continue
+            if message_received[2] == "private_message":
+                protocol_message = message_manager.protocol_message_encoding(message_received[0], message_received[1],
+                                                                             "private_message",
+                                                                             message_received[3])
+                print("Server sends: %s" % protocol_message)
+                message_manager.send_server_message(protocol_message, clients_connected)
+                continue
             if message_received[2] == "broadcast" or message_received[2] == "broadcast_not_me":
                 protocol_message = message_manager.protocol_message_encoding(
                     message_received[0], "all clients", message_received[2], message_received[3])
@@ -99,29 +106,6 @@ def handle_client(client):
                 print("Server sends: %s" % protocol_message)
                 message_manager.send_server_message(protocol_message, clients_connected)
                 continue
-            if message_received[2] == "list_files":
-                if message_received[1] == "":
-                    server_message = "Client name not informed!"
-                    protocol_message = \
-                        message_manager.protocol_message_encoding(
-                            "server", message_received[0], "list_files", server_message)
-                    print("Server sends: %s" % protocol_message)
-                    message_manager.send_server_message(protocol_message, clients_connected)
-                    continue
-                if message_received[3] == "no data":
-                    protocol_message = \
-                        message_manager.protocol_message_encoding(
-                            message_received[0], message_received[1], "list_files")
-                    print("Server sends: %s" % protocol_message)
-                    message_manager.send_server_message(protocol_message, clients_connected)
-                    continue
-                if message_received[3] != "no data":
-                    protocol_message = \
-                        message_manager.protocol_message_encoding(
-                            message_received[0], message_received[1], "list_files", message_received[3])
-                    print("Server sends: %s" % protocol_message)
-                    message_manager.send_server_message(protocol_message, clients_connected)
-                    continue
             if message_received[2] == "exit":
                 protocol_message = \
                     message_manager.protocol_message_encoding(
