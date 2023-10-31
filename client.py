@@ -49,44 +49,69 @@ def client_send():
     Send client messages to the server
     """
     global stop_client
-    time_to_wait = 0
+    time_to_wait = 0.3
     while not stop_client:
         # wait the server answer
         time.sleep(time_to_wait)
         time_to_wait = 0.3
-        operation = ""
         if not stop_client:
-            operation = str(input("Operation: \n"))
-        message = message_manager.protocol_message_encoding(name, "server", "Unknown operation", operation)
-        if operation == "echo":
-            message_data = str(input("Echo message: \n"))
-            message = message_manager.protocol_message_encoding(name, name, "echo", message_data)
-        if operation == "list clients":
-            message = message_manager.protocol_message_encoding(name, "server", "list_clients")
-        if operation == "private message":
-            destination_client = str(input("Input the client to send the private message:\n"))
-            private_message = str(input("Input the private message to %s:\n" % destination_client))
-            message = message_manager.protocol_message_encoding(name, destination_client, "private_message",
-                                                                private_message)
-        if operation == "broadcast":
-            time_to_wait = 1.3
-            broadcast_mode = str(input("Broadcast message except you? y/n\n"))
-            if broadcast_mode == "y":
-                operation = "broadcast_not_me"
-            message_data = str(input("Broadcast message: \n"))
-            message = message_manager.protocol_message_encoding(name, "all clients", operation, message_data)
-        if operation == "exit":
-            time_to_wait = 1.3
-            message_data = "client " + name + " closed"
-            message = message_manager.protocol_message_encoding(name, "server", "exit", message_data)
-        if operation == "close server":
-            time_to_wait = 1.3
-            message_data = "close server"
-            message = message_manager.protocol_message_encoding(name, "server", "close_server", message_data)
+            operation = menu()
+            match operation:
+                case 1:  # echo message
+                    print("--- Sent an echo message ---\n")
+                    message_data = str(input("Echo message: \n"))
+                    message = message_manager.protocol_message_encoding(name, name, "echo", message_data)
+                case 2:  # list clients
+                    print("--- Listing all clients connected ---\n")
+                    message = message_manager.protocol_message_encoding(name, "server", "list_clients")
+                case 3:  # private message
+                    print("--- Sent a message to an specific user ---\n")
+                    destination_client = str(input("Input the client to send the private message:\n"))
+                    private_message = str(input("Input the private message to %s:\n" % destination_client))
+                    message = message_manager.protocol_message_encoding(
+                        name, destination_client, "private_message", private_message)
+                case 4:  # broadcast
+                    print("--- Sent a message to everyone on the Server ---\n")
+                    time_to_wait = 1.3
+                    broadcast_mode = str(input("Broadcast message except you? y/n\n"))
+                    if broadcast_mode == "y":
+                        operation = "broadcast_not_me"
+                    message_data = str(input("Broadcast message: \n"))
+                    message = message_manager.protocol_message_encoding(name, "all clients", operation, message_data)
+                case 5:  # exit: client is leaving
+                    print("--- You are leaving the server and are also closing yourself ---\n")
+                    time_to_wait = 1.3
+                    message_data = "client " + name + " closed"
+                    message = message_manager.protocol_message_encoding(name, "server", "exit", message_data)
+                case 6:  # close server. Everyone will be disconnected and closed
+                    print("--- You are closing the server to everyone ---\n")
+                    time_to_wait = 1.3
+                    message_data = "close server"
+                    message = message_manager.protocol_message_encoding(name, "server", "close_server", message_data)
+                case default:
+                    message = message_manager.protocol_message_encoding(name, "server", "Unknown operation", operation)
         if stop_client:
             break
         message_manager.send_client_message(message, socket_client)
     print("Closing client...")
+
+
+def menu():
+    # Menu
+    options = "Options: \n"
+    options += "1 - echo\n"
+    options += "2 - list clients\n"
+    options += "3 - private message\n"
+    options += "4 - broadcast message\n"
+    options += "5 - exit\n"
+    options += "6 - close server\n"
+    print(options)
+    try:
+        user_answer = int(input("Input option's number:\n"))
+    except ValueError:
+        user_answer = 0
+    finally:
+        return user_answer
 
 
 def print_reply(protocol_message_decoded):
