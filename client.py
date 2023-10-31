@@ -119,14 +119,12 @@ def print_reply(protocol_message_decoded):
     Format the print to user
     :param protocol_message_decoded: message to extract the data to print
     """
-    reply = "-----------------------------------------------------" + "\n"
-    reply += "Reply: " + "\n"
+    reply = "\nIncoming message:\n"
     reply += "   Client sender: " + protocol_message_decoded[0] + "\n"
     reply += "   Client destination: " + protocol_message_decoded[1] + "\n"
     reply += "   Operation: " + protocol_message_decoded[2] + "\n"
     reply += "   Message: " + "\n"
     reply += "      " + protocol_message_decoded[3] + "\n"
-    reply += "-----------------------------------------------------" + "\n"
     print(reply)
 
 

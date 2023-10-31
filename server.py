@@ -12,6 +12,8 @@ BUFFER_SIZE = 1024
 close_server = False
 clients_connected = {}
 """dictionary with all clients connected"""
+clients_moderators = {}
+"""dictionary with all moderators clients"""
 
 
 def receive():
@@ -34,6 +36,7 @@ def receive():
             if username_available(received_message[3]):
                 print("connection is established: (%s) -> %s" % (received_message[3], address))
                 clients_connected[socket_client] = received_message[3]
+                # testar se o servidor possuem alguém na lista de moderadores
                 message_data = "You are now connected to the server in " + str(address)
                 message_protocol = message_manager.protocol_message_encoding(
                     "server", received_message[3], "connection_confirmation", message_data)
@@ -72,7 +75,7 @@ def handle_client(client):
             print("Server receive: %s" % message_received)
             # server actions
             if message_received[2] == "Unknown operation":
-                message_data = "Operation (" + message_received[3] + ") is not supported"
+                message_data = "Operation not supported!"
                 protocol_message = message_manager.protocol_message_encoding("server", message_received[0],
                                                                              "Unknown_operation",
                                                                              message_data)
