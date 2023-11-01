@@ -54,6 +54,7 @@ def client_send():
         # wait the server answer
         time.sleep(time_to_wait)
         time_to_wait = 0.3
+        message = ""
         if not stop_client:
             operation = menu()
             match operation:
@@ -98,6 +99,7 @@ def client_send():
 
 def menu():
     # Menu
+    user_answer = ""
     options = "Options: \n"
     options += "1 - echo\n"
     options += "2 - list clients\n"
