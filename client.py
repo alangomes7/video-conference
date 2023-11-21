@@ -148,11 +148,11 @@ def socket_connect():
     global stop_client
     # new socket, family: Ipv4, type: TCP
     socket_connecting = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-    host = str(input('write down the server Ip: \n'))
-    port = random.randint(49152, 65535)
     connecting = True
     while connecting:
         try:
+            host = str(input('Server Ip: \n'))
+            port = int(input('Server Port: \n'))
             print("Connection attempt...")
             socket_connecting.connect((host, port))
             connecting = False
@@ -160,12 +160,11 @@ def socket_connect():
         except socket.error as e:
             print(f"Error: {e}")
             print("Connection error on (%s,%s)" % (host, port))
-            user_client = str(input("n = to finish or any key to try again..."))
+            user_client = str(input("n = to finish or any key to try again...\n"))
             if user_client == "n":
                 stop_client = True
                 connecting = False
-            else:
-                port = random.randint(49152, 65535)
+                print("Not connected")
     return socket_connecting
 
 

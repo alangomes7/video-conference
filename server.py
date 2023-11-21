@@ -12,8 +12,10 @@ def receive():
     global stop_server
     while not stop_server:
         try:
+            print("esperando...")
             # First: get client and client_name
             socket_client, address = socket_server.accept()
+            print("Foi")
             # message to request client name
             protocol_message = message_manager.protocol_message_encoding("server", "client", "name")
             # using this method because the client is not added on clients_connect list yet
@@ -210,13 +212,16 @@ def socket_connect():
     global stop_server
     # new socket, family: Ipv4, type: TCP
     socket_connecting = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+    ports1 = 1024
+    ports2 = 65535
     connecting = True
     while connecting:
         try:
             host = get_local_ip()
-            port = random.randint(49152, 65535)
+            port = random.randint(ports1, ports2)
             print("Connection attempt...")
-            socket_connecting.connect((host, port))
+            socket_connecting.bind((host, port))
+            socket_connecting.listen(10)
             connecting = False
             print("Server is running and listening on (%s,%s)\n" % (host, port))
         except socket.error as e:
@@ -237,7 +242,6 @@ if __name__ == "__main__":
     socket_server = socket_connect()
 
     if not stop_server:
-        socket_server.listen(10)
         BUFFER_SIZE = 1024
         SERVER_ITSELF = "Server"
         SENDS_TO_ALL = "All clients"
