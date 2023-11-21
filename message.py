@@ -1,3 +1,18 @@
+# Code message operations
+OPCODE_NAME = "name"
+OPCODE_CONNECTION_CONFIRMATION = "connection confirmation"
+OPCODE_CONNECTION_ERROR = "connection error"
+OPCODE_UNKNOWN_OPERATION = "unknown operation"
+OPCODE_ECHO = "echo"
+OPCODE_PRIVATE_MESSAGE = "private message"
+OPCODE_BROADCAST = "broadcast"
+OPCODE_BROADCAST_NOT_ME = "broadcast not me"
+OPCODE_LIST_CLIENTS = "list clients"
+OPCODE_EXIT_CLIENT = "exit client"
+OPCODE_CLOSE_SERVER = "close server"
+OPCODE_ERROR_MESSAGE = "error message"
+
+
 def protocol_message_encoding(x, y, fx, data="no data"):
     """
     Encode message str to bytes
