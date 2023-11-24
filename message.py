@@ -1,3 +1,6 @@
+
+import socket
+
 # Code message operations
 OPCODE_NAME = "name"
 OPCODE_CONNECTION_CONFIRMATION = "connection confirmation"
@@ -11,6 +14,7 @@ OPCODE_LIST_CLIENTS = "list clients"
 OPCODE_EXIT_CLIENT = "exit client"
 OPCODE_CLOSE_SERVER = "close server"
 OPCODE_ERROR_MESSAGE = "error message"
+OPCODE_MESSAGE_CONFIRMATION = "message received"
 
 
 def protocol_message_encoding(x, y, fx, data="no data"):
@@ -33,7 +37,14 @@ def protocol_message_decoding(protocol_message):
     :return: decoded message
     """
     message = str(protocol_message.decode('utf-8'))
-    return message.split(" | ")
+    decoded_message = message.split(" | ")
+    if len(decoded_message) < 4:
+        decoded_formatted_message = ["", "", "", ""]
+        decoded_formatted_message[1] = "server"
+        decoded_formatted_message[2] = OPCODE_UNKNOWN_OPERATION
+        decoded_formatted_message[3] = decoded_message
+        decoded_message = decoded_formatted_message
+    return decoded_message
 
 
 def send_client_message(protocol_message, client):
@@ -42,7 +53,7 @@ def send_client_message(protocol_message, client):
     :param protocol_message: encoded message as bytes
     :param client: client sender
     """
-    client.send(protocol_message)
+    send_message(protocol_message, client)
 
 
 def send_server_message(protocol_message, clients_connected):
@@ -52,24 +63,27 @@ def send_server_message(protocol_message, clients_connected):
     :param clients_connected: The list of clients connected on server
     """
     protocol_message_decoded = protocol_message_decoding(protocol_message)
-    if protocol_message_decoded[2] == "broadcast_not_me" or protocol_message_decoded[2] == "broadcast":
+    if protocol_message_decoded[2] == "broadcast_not_me" or protocol_message_decoded[2] == "broadcast" \
+            or protocol_message_decoded[1] == "broadcast":
         send_server_message_broadcast(protocol_message, clients_connected)
         return protocol_message
     else:
         forwarded_message = False
         destination_client = protocol_message_decoded[1]
-        for client_connected, client_connected_name in clients_connected.items():
-            if client_connected_name == destination_client:
-                client_connected.send(protocol_message)
-                forwarded_message = True
-                break
-        # reply message to sender when not found the client destination (echo)
-        if not forwarded_message:
-            message_data = "Destination client (" + destination_client + ") not found!"
-            protocol_message_reply = protocol_message_encoding("server", protocol_message_decoded[0],
-                                                               protocol_message_decoded[2], message_data)
-            send_server_message(protocol_message_reply, clients_connected)
-            protocol_message = protocol_message_reply
+        found = clients_connected.get(destination_client, "not found")
+        if found != "not found":
+            for client_connected_name, client_connected in clients_connected.items():
+                if client_connected_name == destination_client:
+                    send_message(protocol_message, client_connected)
+                    forwarded_message = True
+                    break
+            # reply message to sender when not found the client destination (echo)
+            if not forwarded_message:
+                message_data = "Destination client (" + destination_client + ") not found!"
+                protocol_message_reply = protocol_message_encoding("server", protocol_message_decoded[0],
+                                                                   protocol_message_decoded[2], message_data)
+                send_server_message(protocol_message_reply, clients_connected)
+                protocol_message = protocol_message_reply
     return protocol_message
 
 
@@ -83,7 +97,26 @@ def send_server_message_broadcast(protocol_message, clients_connected):
     message = protocol_message_decoding(protocol_message)
     mode = message[2]
     client_name = message[0]
-    for client_connected, client_connected_name in clients_connected.items():
-        if client_connected_name == client_name and mode == "broadcast_not_me":
+    for client_connected_name, client_connected in clients_connected.items():
+        if client_connected_name == client_name and mode == OPCODE_BROADCAST_NOT_ME:
             continue
-        client_connected.send(protocol_message)
+        send_message(protocol_message, client_connected)
+
+
+def is_socket_closed(sock):
+    try:
+        # This will retrieve the socket error, if any
+        error_code = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+        return error_code == 0
+    except socket.error:
+        # An error occurred, so the socket is likely closed
+        return False
+
+
+def send_message(protocol_message, sock):
+    try:
+        # This will retrieve the socket error, if any
+        message_code = sock.send(protocol_message)
+        return message_code
+    except socket.error:
+        print("Socket closed.")
