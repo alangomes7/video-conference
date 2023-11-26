@@ -21,7 +21,7 @@ def receive():
 
             # Request client name
             protocol_message = message_manager.protocol_message_encoding("server", "client", "name")
-            socket_client.send(protocol_message)
+            server_sends(protocol_message, socket_client)
 
             # Receive client's name
             received_message = message_manager.protocol_message_decoding(socket_client.recv(BUFFER_SIZE))
@@ -35,7 +35,8 @@ def receive():
                 # Add the client to the connected clients
                 add_client(client_username, socket_client)
 
-                message_data = "You are now connected to the server in " + str(address)
+                message_data = "You are now connected to the server.\n"
+                message_data += "Your address: " + str(address)
                 message_protocol = message_manager.protocol_message_encoding(
                     "server", received_message[3], message_manager.OPCODE_CONNECTION_CONFIRMATION, message_data)
 
@@ -43,8 +44,8 @@ def receive():
                 server_sends(message_protocol)
 
                 # Use threads to allow multiple connections and actions simultaneously
-                thread = threading.Thread(target=handle_client, args=(socket_client,), daemon=True)
-                thread.start()
+                thread_handle_client = threading.Thread(target=handle_client, args=(socket_client,), daemon=True)
+                thread_handle_client.start()
             else:
                 # Inform the client that the username is taken
                 message_data = "This username (" + received_message[3] + ") is already taken.\n"
@@ -130,6 +131,12 @@ def handle_client(client):
                         message_manager.protocol_message_encoding(
                             SERVER_ITSELF, user_sender, message_manager.OPCODE_PRIVATE_MESSAGE, message_data)
                     server_sends(protocol_message)
+            if message_received[2] == message_manager.OPCODE_VIDEO_CONFERENCE \
+                    and message_received[3] == message_manager.MESSAGE_REQUESTING:
+                message_data = "Client " + message_received[0] + "is requesting a video conference"
+                protocol_message = message_manager.protocol_message_encoding(
+                    message_received[0], message_received[1], message_received[2], message_data)
+                server_sends(protocol_message)
         except socket.error as socket_error:
             # removes the clients from list
             message_data = str(socket_error) + " | "
@@ -174,6 +181,7 @@ def server_sends(protocol_message, socket_client=None):
             log_file("Server clients is empty!")
     else:
         socket_client.send(protocol_message)
+    time.sleep(2)
 
 
 def server_checks(socket_error=""):

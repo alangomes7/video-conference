@@ -3,9 +3,18 @@ import threading
 import time
 import message as message_manager
 
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gst", "1.0")
+from gi.repository import Gtk, GLib, Gst, GLib
+
+Gst.init(None)
+
 
 def client_receive():
     global stop_client
+    message_received = ""
     while not stop_client:
         try:
             message_received = message_manager.protocol_message_decoding(socket_client.recv(BUFFER_SIZE))
@@ -55,7 +64,11 @@ def client_menu_message():
     elif operation == 6:  # close server. Everyone will be disconnected and closed
         print("--- You are closing the server to everyone ---\n")
         message_code_operation = message_manager.OPCODE_CLOSE_SERVER
-
+    elif operation == 7:  # video conference
+        print("--- Video conference ---\n")
+        message_destination = str(input("Input the name of user to connect:\n"))
+        message_code_operation = message_manager.OPCODE_VIDEO_CONFERENCE
+        message_data = message_manager.MESSAGE_REQUESTING
     return message_manager.protocol_message_encoding(name, message_destination, message_code_operation, message_data)
 
 
@@ -68,31 +81,38 @@ def handle_received_message(protocol_message_decoded):
         protocol_message = message_manager.protocol_message_encoding(name, "server", message_manager.OPCODE_NAME, name)
         message_manager.send_client_message(protocol_message, socket_client)
 
+    elif protocol_message_decoded[2] == message_manager.OPCODE_CONNECTION_CONFIRMATION:
+        my_address(protocol_message_decoded)
+        print_reply(protocol_message_decoded)
+
     elif protocol_message_decoded[2] in (
             message_manager.OPCODE_UNKNOWN_OPERATION, message_manager.OPCODE_ECHO,
             message_manager.OPCODE_PRIVATE_MESSAGE, message_manager.OPCODE_LIST_CLIENTS,
-            message_manager.OPCODE_BROADCAST_NOT_ME, message_manager.OPCODE_CONNECTION_CONFIRMATION,
-            message_manager.OPCODE_MESSAGE_CONFIRMATION):
+            message_manager.OPCODE_BROADCAST_NOT_ME, message_manager.OPCODE_MESSAGE_CONFIRMATION,
+            message_manager.OPCODE_CONNECTION_CONFIRMATION):
         print_reply(protocol_message_decoded)
 
     elif protocol_message_decoded[2] in (message_manager.OPCODE_CONNECTION_ERROR, message_manager.OPCODE_EXIT_CLIENT):
         close_client(protocol_message_decoded)
 
     # Broadcast Messages
-    message = "server closed"
-    if protocol_message_decoded[2] == message_manager.OPCODE_BROADCAST \
-            and (message in protocol_message_decoded[3]):
-        close_client(protocol_message_decoded)
-
-    else:
-        message = "You are exiting the server"
-        if protocol_message_decoded[2] == message_manager.OPCODE_BROADCAST \
-                and (message in protocol_message_decoded[3]):
+    if protocol_message_decoded[2] == message_manager.OPCODE_BROADCAST:
+        message = "server closed"
+        if message in protocol_message_decoded[3]:
             close_client(protocol_message_decoded)
 
-        if protocol_message_decoded[2] == message_manager.OPCODE_BROADCAST \
-                and not (message in protocol_message_decoded[3]):
-            print_reply(protocol_message_decoded)
+        else:
+            message = "You are exiting the server"
+            if protocol_message_decoded[2] == message_manager.OPCODE_BROADCAST \
+                    and (message in protocol_message_decoded[3]):
+                close_client(protocol_message_decoded)
+
+            if protocol_message_decoded[2] == message_manager.OPCODE_BROADCAST \
+                    and not (message in protocol_message_decoded[3]):
+                print_reply(protocol_message_decoded)
+    # Video conference Messages
+    if protocol_message_decoded[2] == message_manager.MESSAGE_REQUESTING:
+        print("Message requesting")
 
 
 def close_client(protocol_message_decoded):
@@ -127,6 +147,7 @@ def menu():
     options += "4 - broadcast message\n"
     options += "5 - exit\n"
     options += "6 - close server\n"
+    options += "7 - Video Conference\n"
     print(options)
     user_answer = ""
     try:
@@ -140,6 +161,15 @@ def menu():
 def print_reply(protocol_message_decoded):
     print("Server reply:\n")
     print(protocol_message_decoded[3])
+
+
+def my_address(message_data):
+    global my_ip, my_port
+    data = message_data[3]
+    adrress = data.split("('")[1].split("',")
+    my_ip = adrress[0]
+    my_port = adrress[1][:-1]
+    print(my_ip)
 
 
 def socket_connect():
@@ -185,6 +215,9 @@ if __name__ == "__main__":
 
         thread_send = threading.Thread(target=client_send, daemon=True)
         thread_send.start()
+
+        my_ip = ""
+        my_port = 0
 
         while not stop_client:
             pass

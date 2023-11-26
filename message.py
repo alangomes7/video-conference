@@ -15,6 +15,12 @@ OPCODE_EXIT_CLIENT = "exit client"
 OPCODE_CLOSE_SERVER = "close server"
 OPCODE_ERROR_MESSAGE = "error message"
 OPCODE_MESSAGE_CONFIRMATION = "message received"
+OPCODE_VIDEO_CONFERENCE = "video conference"
+
+# Message data
+MESSAGE_REQUESTING = "request connection"
+MESSAGE_DECLINED = "connection declined"
+MESSAGE_ACCEPTED = "connection accepted"
 
 
 def protocol_message_encoding(x, y, fx, data="no data"):
@@ -120,3 +126,4 @@ def send_message(protocol_message, sock):
         return message_code
     except socket.error:
         print("Socket closed.")
+
