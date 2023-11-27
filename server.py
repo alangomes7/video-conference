@@ -1,6 +1,7 @@
 import threading
 import socket
 import time
+from datetime import datetime
 
 import message as message_manager
 
@@ -25,8 +26,9 @@ class ServerInterface:
         self.BUFFER_SIZE = 1024
         self.SERVER_ITSELF = "Server"
         self.SENDS_TO_ALL = "All clients"
+        self.LOG_FILE_NAME = "log_" + self.get_time(False) + ".txt"
         self.socket_server = None
-        self.SOCKET_TIMEOUT = 5
+        self.SOCKET_TIMEOUT = 10
 
         # database
         self.clients_connected = {}
@@ -41,10 +43,21 @@ class ServerInterface:
     def on_main_window_destroy(self, window):
         Gtk.main_quit()
 
+    def get_time(self, spaces=True):
+        # Get the current time
+        current_time = datetime.now()
+        formatted_time = ""
+
+        # Format the time as a string
+        if spaces:
+            formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            formatted_time = current_time.strftime("%Y-%m-%d_%H-%M-%S")
+        return formatted_time
+
     def save_log_file(self, log_message):
         # writing log file
-        log_file_path = 'log.txt'
-        with open(log_file_path, 'a') as file:
+        with open(self.LOG_FILE_NAME, 'a') as file:
             file.write(str(log_message) + '\n')
 
     def update_log_interface(self, log_message):
@@ -53,8 +66,9 @@ class ServerInterface:
         self.textbuffer.insert(end_iter, log_message + "\n")
 
     def log_file(self, log_message):
-        GLib.idle_add(self.save_log_file, log_message)
-        GLib.idle_add(self.update_log_interface, log_message)
+        log_message_with_time = self.get_time() + " - " + log_message
+        GLib.idle_add(self.save_log_file, log_message_with_time)
+        GLib.idle_add(self.update_log_interface, log_message_with_time)
 
     def message_confirmation(self, user_sender, message_code):
         if message_code in (message_manager.OPCODE_PRIVATE_MESSAGE, message_manager.OPCODE_BROADCAST_NOT_ME):
@@ -193,8 +207,7 @@ class ServerInterface:
         while not self.close_server:
             try:
                 socket_client, address = self.socket_server.accept()
-                socket_client.setdefaulttimeout(self.SOCKET_TIMEOUT)
-
+                socket_client.settimeout(self.SOCKET_TIMEOUT)
                 protocol_message = message_manager.protocol_message_encoding("server", "client", "name")
                 self.server_sends(protocol_message, socket_client)
 
