@@ -73,7 +73,7 @@ def client_menu_message():
 
 
 def handle_received_message(protocol_message_decoded):
-    global stop_client
+    global stop_client, socket_client
     if stop_client:
         return
 
@@ -111,8 +111,39 @@ def handle_received_message(protocol_message_decoded):
                     and not (message in protocol_message_decoded[3]):
                 print_reply(protocol_message_decoded)
     # Video conference Messages
-    if protocol_message_decoded[2] == message_manager.MESSAGE_REQUESTING:
-        print("Message requesting")
+    if protocol_message_decoded[2] == message_manager.OPCODE_VIDEO_CONFERENCE:
+        if protocol_message_decoded[3] == message_manager.MESSAGE_REQUESTING:
+            print("Message requesting")
+            answer = str(input("Accept call from " + protocol_message_decoded[1] + "? y/n"))
+            if answer == "y":
+                protocol_message = message_manager.protocol_message_encoding(
+                    name, protocol_message_decoded[0], message_manager.OPCODE_VIDEO_CONFERENCE,
+                    message_manager.MESSAGE_ACCEPTED)
+                message_manager.send_client_message(protocol_message, socket_client)
+            if answer == "n":
+                protocol_message = message_manager.protocol_message_encoding(
+                    name, protocol_message_decoded[0], message_manager.OPCODE_VIDEO_CONFERENCE,
+                    message_manager.MESSAGE_DECLINED)
+                message_manager.send_client_message(protocol_message, socket_client)
+            else:
+                pass
+        if protocol_message_decoded[3] == message_manager.MESSAGE_DECLINED:
+            print("Connection declined by " + protocol_message_decoded[0])
+        if protocol_message_decoded[3] == message_manager.MESSAGE_ACCEPTED:
+            protocol_message = message_manager.protocol_message_encoding(
+                name, protocol_message_decoded[0], message_manager.OPCODE_CLIENT_ADDRESS)
+            message_manager.send_client_message(protocol_message, socket_client)
+
+    # address messages
+    if protocol_message_decoded[2] == message_manager.OPCODE_CLIENT_ADDRESS_REQUEST:
+        message_data = my_ip + ";" + my_port
+        protocol_message = message_manager.protocol_message_encoding(
+            name, protocol_message_decoded[0],message_manager.OPCODE_CLIENT_ADDRESS_SEND, message_data)
+        message_manager.send_client_message(protocol_message,socket_client)
+    if protocol_message_decoded[2] == message_manager.OPCODE_CLIENT_ADDRESS_SEND:
+        print(protocol_message_decoded[3])
+
+
 
 
 def close_client(protocol_message_decoded):
@@ -181,8 +212,7 @@ def socket_connect():
         host = str(input("Please input the server's ip:\n"))
         port = 1234  # int(input("Please input the server's port:\n"))
         try:
-            # Time out necessary to conect to a specific ip
-            socket_connecting.settimeout(5)
+            # Time out necessary to connect to a specific ip
             socket_connecting.connect((host, port))
             # Removes time out. It needs to wait the user's input
             socket_connecting.settimeout(None)

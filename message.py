@@ -16,6 +16,8 @@ OPCODE_CLOSE_SERVER = "close server"
 OPCODE_ERROR_MESSAGE = "error message"
 OPCODE_MESSAGE_CONFIRMATION = "message received"
 OPCODE_VIDEO_CONFERENCE = "video conference"
+OPCODE_CLIENT_ADDRESS_REQUEST = "request address"
+OPCODE_CLIENT_ADDRESS_SEND = "send address"
 
 # Message data
 MESSAGE_REQUESTING = "request connection"

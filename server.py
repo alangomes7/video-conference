@@ -2,6 +2,7 @@ import threading
 import socket
 import time
 from datetime import datetime
+import os
 
 import message as message_manager
 
@@ -26,9 +27,10 @@ class ServerInterface:
         self.BUFFER_SIZE = 1024
         self.SERVER_ITSELF = "Server"
         self.SENDS_TO_ALL = "All clients"
-        self.LOG_FILE_NAME = "log_" + self.get_time(False) + ".txt"
+        self.FOLDER_PATH = "./logs/"
+        self.LOG_FILE_NAME = self.FOLDER_PATH + "log_" + self.get_time(False) + ".txt"
         self.socket_server = None
-        self.SOCKET_TIMEOUT = 10
+        self.thread_server_listening = None
 
         # database
         self.clients_connected = {}
@@ -38,10 +40,25 @@ class ServerInterface:
 
         # Running control
         self.close_server = False
-        self.running = False
+        self.close_button_pressed = False
+        self.server_ran = False
+
+        # creating folder to logs
+        self.create_folder(self.FOLDER_PATH)
 
     def on_main_window_destroy(self, window):
         Gtk.main_quit()
+
+    def close_interface(self):
+        time.sleep(3)
+        Gtk.main_quit()
+
+    def create_folder(self,folder_path):
+        if os.path.exists(folder_path):
+            pass
+        else:
+            # Create a folder at the specified path
+            os.makedirs(folder_path)
 
     def get_time(self, spaces=True):
         # Get the current time
@@ -66,7 +83,7 @@ class ServerInterface:
         self.textbuffer.insert(end_iter, log_message + "\n")
 
     def log_file(self, log_message):
-        log_message_with_time = self.get_time() + " - " + log_message
+        log_message_with_time = self.get_time() + " - " + str(log_message)
         GLib.idle_add(self.save_log_file, log_message_with_time)
         GLib.idle_add(self.update_log_interface, log_message_with_time)
 
@@ -100,7 +117,7 @@ class ServerInterface:
         else:
             self.log_file(socket_error)
             self.log_file("Restarting the server...\n")
-            self.up_server()
+            self.server_listen()
 
     def get_client_socket_by_name(self, client_name, client_list):
         """
@@ -188,7 +205,6 @@ class ServerInterface:
         Function to create a socket and connect it.
         """
         socket_connecting = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        socket_connecting.settimeout(self.SOCKET_TIMEOUT)
         host = self.get_local_ip()
         port = 1234
         try:
@@ -203,15 +219,16 @@ class ServerInterface:
             self.close_server = True
             return None
 
-    def up_server(self):
+    def server_listen(self):
         while not self.close_server:
             try:
-                socket_client, address = self.socket_server.accept()
-                socket_client.settimeout(self.SOCKET_TIMEOUT)
+                socket_client, address = self.socket_server.accept() # Async/Await
                 protocol_message = message_manager.protocol_message_encoding("server", "client", "name")
                 self.server_sends(protocol_message, socket_client)
 
                 received_message = message_manager.protocol_message_decoding(socket_client.recv(self.BUFFER_SIZE))
+                if received_message == "":
+                    continue
                 self.log_file(received_message)
 
                 client_username = received_message[3]
@@ -236,8 +253,6 @@ class ServerInterface:
                         "server", received_message[3], message_manager.OPCODE_CONNECTION_ERROR, message_data)
                     self.log_file("Sent: %s" % protocol_message)
                     self.server_sends(protocol_message, socket_client)
-            except socket.timeout:
-                continue
             except socket.error as socket_error:
                 self.server_checks(str(socket_error))
                 break
@@ -328,31 +343,33 @@ class ServerInterface:
                 self.SERVER_ITSELF, message_manager.OPCODE_BROADCAST, message_manager.OPCODE_BROADCAST, message_data)
             self.server_sends(protocol_message)
             time.sleep(2)
-            self.socket_server.close()
-        else:
-            self.up_server()
+        self.server_checks()
 
     def on_button_run_stop_clicked(self, button):
-        if not self.running:
+        if not self.server_ran:
             self.socket_server = self.socket_connect()
             if not self.socket_server:
                 self.log_file("Socket not connected!\n")
                 self.close_server = True
             else:
-                self.button_run_stop.set_label("Stop")
+                self.button_run_stop.set_label("Close")
                 self.close_server = False
-                thread_server_listening = threading.Thread(target=self.up_server, args=(), daemon=True)
-                thread_server_listening.start()
+                self.server_ran = True
+                self.thread_server_listening = threading.Thread(target=self.server_listen, args=(), daemon=True)
+                self.thread_server_listening.start()
 
-                # Update the button
-                self.running = not self.running
         else:
-            self.log_file("Stopping...")
-            self.close_server = True
-            self.button_run_stop.set_label("Run")
-
-            # Update the button
-            self.running = not self.running
+            if not self.close_button_pressed:
+                self.close_button_pressed = True
+                self.button_run_stop.set_label("Closing...")
+                self.log_file("Stopping...")
+                self.close_server = True
+                if self.thread_server_listening:
+                    self.log_file("Closing the program...")
+                    thread_close = threading.Thread(target=self.close_interface, args=())
+                    thread_close.start()
+            else:
+                pass
 
     def run(self):
         self.window.show_all()
