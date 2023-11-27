@@ -26,6 +26,7 @@ class ServerInterface:
         self.SERVER_ITSELF = "Server"
         self.SENDS_TO_ALL = "All clients"
         self.socket_server = None
+        self.SOCKET_TIMEOUT = 5
 
         # database
         self.clients_connected = {}
@@ -34,7 +35,7 @@ class ServerInterface:
         """dictionary with all moderators clients"""
 
         # Running control
-        self.close_server = threading.Event()
+        self.close_server = False
         self.running = False
 
     def on_main_window_destroy(self, window):
@@ -81,12 +82,11 @@ class ServerInterface:
         Verify if the server was closed due to a client message or error
         """
         if self.close_server:
-            self.log_file("Server closed")
-            self.close_server.set()
+            self.log_file("Server closed\n")
         else:
             self.log_file(socket_error)
             self.log_file("Restarting the server...\n")
-            self.on_button_run_stop_clicked()
+            self.up_server()
 
     def get_client_socket_by_name(self, client_name, client_list):
         """
@@ -143,7 +143,7 @@ class ServerInterface:
         The server can only continue open if exists at least one moderator.
         """
         if not self.clients_moderators:
-            self.close_server.set()
+            self.close_server = True
             time.sleep(3)
 
     def dict_empty(self, dict_clients):
@@ -174,6 +174,7 @@ class ServerInterface:
         Function to create a socket and connect it.
         """
         socket_connecting = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        socket_connecting.settimeout(self.SOCKET_TIMEOUT)
         host = self.get_local_ip()
         port = 1234
         try:
@@ -185,16 +186,14 @@ class ServerInterface:
         except socket.error as e:
             self.log_file(f"Error: {e}")
             self.log_file("Server connection error on (%s,%s)" % (host, port))
-            self.close_server.set()
+            self.close_server = True
             return None
 
     def up_server(self):
-        while not self.close_server.is_set():
+        while not self.close_server:
             try:
-                self.log_file("Waiting for connection...")
-
                 socket_client, address = self.socket_server.accept()
-                self.log_file("Connection established")
+                socket_client.setdefaulttimeout(self.SOCKET_TIMEOUT)
 
                 protocol_message = message_manager.protocol_message_encoding("server", "client", "name")
                 self.server_sends(protocol_message, socket_client)
@@ -224,6 +223,8 @@ class ServerInterface:
                         "server", received_message[3], message_manager.OPCODE_CONNECTION_ERROR, message_data)
                     self.log_file("Sent: %s" % protocol_message)
                     self.server_sends(protocol_message, socket_client)
+            except socket.timeout:
+                continue
             except socket.error as socket_error:
                 self.server_checks(str(socket_error))
                 break
@@ -232,7 +233,7 @@ class ServerInterface:
     def handle_client(self, client):
         message_received = ["", "", "", ""]
         message_data = ""
-        while not self.close_server.is_set():
+        while not self.close_server:
             try:
                 message_received = message_manager.protocol_message_decoding(client.recv(self.BUFFER_SIZE))
                 self.log_file("Server receive: %s" % message_received)
@@ -282,7 +283,7 @@ class ServerInterface:
                 if message_received[2] == message_manager.OPCODE_CLOSE_SERVER:
                     if self.get_client_socket_by_name(user_sender, self.clients_moderators) != "not found":
                         message_data = "server closed"
-                        self.close_server.set()
+                        self.close_server = True
                     else:
                         message_data = "You do not have enough permissions to execute that action!"
                         protocol_message = message_manager.protocol_message_encoding(
@@ -307,7 +308,7 @@ class ServerInterface:
                 self.server_sends(protocol_message)
                 self.receive()
                 break
-        if self.close_server.is_set():
+        if self.close_server:
             self.log_file("Closing server...")
             message_data += "\nUser (" + message_received[0] + ") closes the server."
             protocol_message = message_manager.protocol_message_encoding(
@@ -322,10 +323,11 @@ class ServerInterface:
         if not self.running:
             self.socket_server = self.socket_connect()
             if not self.socket_server:
-                self.log_file("Socket not connected!")
-                self.close_server.set()
+                self.log_file("Socket not connected!\n")
+                self.close_server = True
             else:
                 self.button_run_stop.set_label("Stop")
+                self.close_server = False
                 thread_server_listening = threading.Thread(target=self.up_server, args=(), daemon=True)
                 thread_server_listening.start()
 
@@ -333,7 +335,7 @@ class ServerInterface:
                 self.running = not self.running
         else:
             self.log_file("Stopping...")
-            self.close_server.set()
+            self.close_server = True
             self.button_run_stop.set_label("Run")
 
             # Update the button
