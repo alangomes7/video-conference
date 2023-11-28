@@ -298,17 +298,12 @@ class ServerInterface:
                     # Finally removes it from connected clients
                     self.remove_client(self.user_sender)
                     continue
-                if message_received[2] == message_manager.OPCODE_VIDEO_CONFERENCE:
-                    if len(message_received) == 4:
-                        protocol_message = message_manager.protocol_message_encoding(
-                            message_received[0], message_received[1], message_received[2], message_received[3])
-                        self.server_sends(protocol_message)
-                    if len(message_received) < 4:
-                        protocol_message = message_manager.protocol_message_encoding(
-                            message_received[0], message_received[1], message_received[2])
-                        self.server_sends(protocol_message)
-                    else:
-                        pass
+                elif message_received[2] in (
+                        message_manager.OPCODE_VIDEO_CONFERENCE, message_manager.OPCODE_CLIENT_ADDRESS_REQUEST,
+                        message_manager.OPCODE_CLIENT_ADDRESS_SEND):
+                    protocol_message = message_manager.protocol_message_encoding(
+                        message_received[0], message_received[1], message_received[2], message_received[3])
+                    self.server_sends(protocol_message)
                     continue
             except socket.error as socket_error:
                 message_data = str(socket_error) + " ; "

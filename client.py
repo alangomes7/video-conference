@@ -59,7 +59,6 @@ def client_menu_message():
 
 def client_receive():
     global stop_client
-    message_received = ""
     while not stop_client:
         try:
             message_received = message_manager.protocol_message_decoding(socket_client.recv(BUFFER_SIZE))
@@ -131,12 +130,14 @@ def handle_received_message(protocol_message_decoded):
     # address messages
     if protocol_message_decoded[2] == message_manager.OPCODE_CLIENT_ADDRESS_REQUEST:
         message_data = my_ip + ";" + my_port
+        print(message_data)
         protocol_message = message_manager.protocol_message_encoding(
             name, protocol_message_decoded[0], message_manager.OPCODE_CLIENT_ADDRESS_SEND, message_data)
         message_manager.send_client_message(protocol_message, socket_client)
     if protocol_message_decoded[2] == message_manager.OPCODE_CLIENT_ADDRESS_SEND:
         print(protocol_message_decoded[3])
         print("Video call started!")
+        # métodos de iniciar a chamada :(
 
 
 def close_client(protocol_message_decoded):
