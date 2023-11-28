@@ -12,7 +12,6 @@ OPCODE_BROADCAST = "broadcast"
 OPCODE_BROADCAST_NOT_ME = "broadcast not me"
 OPCODE_LIST_CLIENTS = "list clients"
 OPCODE_EXIT_CLIENT = "exit client"
-OPCODE_CLOSE_SERVER = "close server"
 OPCODE_ERROR_MESSAGE = "error message"
 OPCODE_MESSAGE_CONFIRMATION = "message received"
 OPCODE_VIDEO_CONFERENCE = "video conference"
@@ -23,6 +22,8 @@ OPCODE_CLIENT_ADDRESS_SEND = "send address"
 MESSAGE_REQUESTING = "request connection"
 MESSAGE_DECLINED = "connection declined"
 MESSAGE_ACCEPTED = "connection accepted"
+MESSAGE_SERVER_CLOSED = "server closed"
+MESSAGE_YOU_LEAVING = "You are exiting the server"
 
 
 def protocol_message_encoding(x, y, fx, data="no data"):
@@ -71,8 +72,7 @@ def send_server_message(protocol_message, clients_connected):
     :param clients_connected: The list of clients connected on server
     """
     protocol_message_decoded = protocol_message_decoding(protocol_message)
-    if protocol_message_decoded[2] == "broadcast_not_me" or protocol_message_decoded[2] == "broadcast" \
-            or protocol_message_decoded[1] == "broadcast":
+    if protocol_message_decoded[2] == "broadcast_not_me" or protocol_message_decoded[2] == "broadcast":
         send_server_message_broadcast(protocol_message, clients_connected)
         return protocol_message
     else:

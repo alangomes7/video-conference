@@ -12,24 +12,12 @@ from gi.repository import Gtk, GLib, Gst, GLib
 Gst.init(None)
 
 
-def client_receive():
-    global stop_client
-    message_received = ""
-    while not stop_client:
-        try:
-            message_received = message_manager.protocol_message_decoding(socket_client.recv(BUFFER_SIZE))
-            handle_received_message(message_received)
-        except socket.error as socket_error:
-            handle_client_error(socket_error)
-    print("Closing client (receive)...")
-
-
 def client_send():
     global stop_client, wait_server
     while not stop_client:
         message_protocol_options = client_menu_message()
         message_manager.send_client_message(message_protocol_options, socket_client)
-        wait_server = True
+        # wait_server = True
 
 
 def client_menu_message():
@@ -61,15 +49,24 @@ def client_menu_message():
     elif operation == 5:  # exit: client is leaving
         print("--- You are leaving the server and are also closing yourself ---\n")
         message_code_operation = message_manager.OPCODE_EXIT_CLIENT
-    elif operation == 6:  # close server. Everyone will be disconnected and closed
-        print("--- You are closing the server to everyone ---\n")
-        message_code_operation = message_manager.OPCODE_CLOSE_SERVER
-    elif operation == 7:  # video conference
+    elif operation == 6:  # video conference
         print("--- Video conference ---\n")
         message_destination = str(input("Input the name of user to connect:\n"))
         message_code_operation = message_manager.OPCODE_VIDEO_CONFERENCE
         message_data = message_manager.MESSAGE_REQUESTING
     return message_manager.protocol_message_encoding(name, message_destination, message_code_operation, message_data)
+
+
+def client_receive():
+    global stop_client
+    message_received = ""
+    while not stop_client:
+        try:
+            message_received = message_manager.protocol_message_decoding(socket_client.recv(BUFFER_SIZE))
+            handle_received_message(message_received)
+        except socket.error as socket_error:
+            handle_client_error(socket_error)
+    print("Closing client (receive)...")
 
 
 def handle_received_message(protocol_message_decoded):
@@ -97,19 +94,16 @@ def handle_received_message(protocol_message_decoded):
 
     # Broadcast Messages
     if protocol_message_decoded[2] == message_manager.OPCODE_BROADCAST:
-        message = "server closed"
-        if message in protocol_message_decoded[3]:
+        if protocol_message_decoded[3] == message_manager.MESSAGE_SERVER_CLOSED:
             close_client(protocol_message_decoded)
 
         else:
-            message = "You are exiting the server"
-            if protocol_message_decoded[2] == message_manager.OPCODE_BROADCAST \
-                    and (message in protocol_message_decoded[3]):
+            if message_manager.MESSAGE_YOU_LEAVING in protocol_message_decoded[3]:
                 close_client(protocol_message_decoded)
 
-            if protocol_message_decoded[2] == message_manager.OPCODE_BROADCAST \
-                    and not (message in protocol_message_decoded[3]):
+            if not (message_manager.MESSAGE_YOU_LEAVING in protocol_message_decoded[3]):
                 print_reply(protocol_message_decoded)
+
     # Video conference Messages
     if protocol_message_decoded[2] == message_manager.OPCODE_VIDEO_CONFERENCE:
         if protocol_message_decoded[3] == message_manager.MESSAGE_REQUESTING:
@@ -131,28 +125,27 @@ def handle_received_message(protocol_message_decoded):
             print("Connection declined by " + protocol_message_decoded[0])
         if protocol_message_decoded[3] == message_manager.MESSAGE_ACCEPTED:
             protocol_message = message_manager.protocol_message_encoding(
-                name, protocol_message_decoded[0], message_manager.OPCODE_CLIENT_ADDRESS)
+                name, protocol_message_decoded[0], message_manager.OPCODE_CLIENT_ADDRESS_REQUEST)
             message_manager.send_client_message(protocol_message, socket_client)
 
     # address messages
     if protocol_message_decoded[2] == message_manager.OPCODE_CLIENT_ADDRESS_REQUEST:
         message_data = my_ip + ";" + my_port
         protocol_message = message_manager.protocol_message_encoding(
-            name, protocol_message_decoded[0],message_manager.OPCODE_CLIENT_ADDRESS_SEND, message_data)
-        message_manager.send_client_message(protocol_message,socket_client)
+            name, protocol_message_decoded[0], message_manager.OPCODE_CLIENT_ADDRESS_SEND, message_data)
+        message_manager.send_client_message(protocol_message, socket_client)
     if protocol_message_decoded[2] == message_manager.OPCODE_CLIENT_ADDRESS_SEND:
         print(protocol_message_decoded[3])
-
-
+        print("Video call started!")
 
 
 def close_client(protocol_message_decoded):
     global stop_client
     print_reply(protocol_message_decoded)
+    stop_client = True
     time.sleep(3)
     socket_client.close()
     print("Closing client (message received: exit)...")
-    stop_client = True
 
 
 def handle_client_error(socket_error):
@@ -177,8 +170,7 @@ def menu():
     options += "3 - private message\n"
     options += "4 - broadcast message\n"
     options += "5 - exit\n"
-    options += "6 - close server\n"
-    options += "7 - Video Conference\n"
+    options += "6 - Video Conference\n"
     print(options)
     user_answer = ""
     try:

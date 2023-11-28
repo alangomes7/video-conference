@@ -15,7 +15,7 @@ from gi.repository import Gtk, GLib
 class ServerInterface:
     def __init__(self):
         self.builder = Gtk.Builder()
-        self.builder.add_from_file("ui/server_gui.glade")
+        self.builder.add_from_file("server_gui.glade")
         self.textview_logs = self.builder.get_object("text_view_logs")
         self.textbuffer = self.textview_logs.get_buffer()
         self.button_run_stop = self.builder.get_object("button_run_stop")
@@ -31,12 +31,11 @@ class ServerInterface:
         self.LOG_FILE_NAME = self.FOLDER_PATH + "log_" + self.get_time(False) + ".txt"
         self.socket_server = None
         self.thread_server_listening = None
+        self.user_sender = None
 
         # database
         self.clients_connected = {}
         """dictionary with all clients connected"""
-        self.clients_moderators = {}
-        """dictionary with all moderators clients"""
 
         # Running control
         self.close_server = False
@@ -54,11 +53,14 @@ class ServerInterface:
         Gtk.main_quit()
 
     def create_folder(self,folder_path):
-        if os.path.exists(folder_path):
-            pass
-        else:
-            # Create a folder at the specified path
-            os.makedirs(folder_path)
+        try:
+            if os.path.exists(folder_path):
+                pass
+            else:
+                # Create a folder at the specified path
+                os.makedirs(folder_path)
+        except OSError as e:
+            print("error log file")
 
     def get_time(self, spaces=True):
         # Get the current time
@@ -73,9 +75,12 @@ class ServerInterface:
         return formatted_time
 
     def save_log_file(self, log_message):
-        # writing log file
-        with open(self.LOG_FILE_NAME, 'a') as file:
-            file.write(str(log_message) + '\n')
+        try:
+            # writing log file
+            with open(self.LOG_FILE_NAME, 'a') as file:
+                file.write(str(log_message) + '\n')
+        except OSError as e:
+            print(e)
 
     def update_log_interface(self, log_message):
         # showing message on ui
@@ -106,7 +111,6 @@ class ServerInterface:
                 self.log_file("Server clients is empty!")
         else:
             socket_client.send(protocol_message)
-        time.sleep(2)
 
     def server_checks(self, socket_error=""):
         """
@@ -147,16 +151,6 @@ class ServerInterface:
         :param: client_socket: client's socket to add
         """
         self.clients_connected[username] = client_socket
-        self.add_moderator(username, client_socket)
-
-    def add_moderator(self, client_username, client_socket):
-        """
-        Verify is the server has moderators. If it has not then adds else do not add it.
-        :param: client_username: client's username to add.
-        :param: client_socket: client's socket to add.
-        """
-        if self.dict_empty(self.clients_moderators):
-            self.clients_moderators[client_username] = client_socket
 
     def remove_client(self, client_username):
         """
@@ -164,18 +158,8 @@ class ServerInterface:
         :param: client_username: client's username to be removed from dict
         :dict_clients: dictionary to be updated without client
         """
-        self.clients_moderators.pop(client_username, -1)
-        self.clients_connected.pop(client_username, -1)
-        self.server_has_at_least_one_moderator()
-
-    def server_has_at_least_one_moderator(self):
-        """
-        Verify if the server can continue open.
-        The server can only continue open if exists at least one moderator.
-        """
-        if not self.clients_moderators:
-            self.close_server = True
-            time.sleep(3)
+        if client_username in self.clients_connected:
+            self.clients_connected.pop(client_username, -1)
 
     def dict_empty(self, dict_clients):
         """Verify is dict is empty
@@ -222,12 +206,12 @@ class ServerInterface:
     def server_listen(self):
         while not self.close_server:
             try:
-                socket_client, address = self.socket_server.accept() # Async/Await
+                socket_client, address = self.socket_server.accept()
                 protocol_message = message_manager.protocol_message_encoding("server", "client", "name")
                 self.server_sends(protocol_message, socket_client)
 
                 received_message = message_manager.protocol_message_decoding(socket_client.recv(self.BUFFER_SIZE))
-                if received_message == "":
+                if received_message[0] == "":
                     continue
                 self.log_file(received_message)
 
@@ -264,85 +248,85 @@ class ServerInterface:
         while not self.close_server:
             try:
                 message_received = message_manager.protocol_message_decoding(client.recv(self.BUFFER_SIZE))
+                if message_received[0] == "":
+                    continue
+
                 self.log_file("Server receive: %s" % message_received)
-                user_sender = message_received[0]
-                self.message_confirmation(user_sender, message_received[2])
+                self.user_sender = message_received[0]
+                self.message_confirmation(self.user_sender, message_received[2])
 
                 if message_received[2] == message_manager.OPCODE_UNKNOWN_OPERATION:
                     message_data = "Operation not supported!"
                     protocol_message = message_manager.protocol_message_encoding(
-                        "server", user_sender, message_manager.OPCODE_UNKNOWN_OPERATION, message_data)
+                        "server", self.user_sender, message_manager.OPCODE_UNKNOWN_OPERATION, message_data)
                     self.server_sends(protocol_message)
                     continue
                 if message_received[2] == message_manager.OPCODE_ECHO:
                     protocol_message = message_manager.protocol_message_encoding(
-                        user_sender, user_sender, message_manager.OPCODE_ECHO, message_received[3])
+                        self.user_sender, self.user_sender, message_manager.OPCODE_ECHO, message_received[3])
                     self.server_sends(protocol_message)
                     continue
                 if message_received[2] == message_manager.OPCODE_PRIVATE_MESSAGE:
                     protocol_message = message_manager.protocol_message_encoding(
-                        user_sender, message_received[1], message_manager.OPCODE_PRIVATE_MESSAGE,
+                        self.user_sender, message_received[1], message_manager.OPCODE_PRIVATE_MESSAGE,
                         message_received[3])
                     self.server_sends(protocol_message)
                     continue
                 if message_received[2] == message_manager.OPCODE_BROADCAST \
                         or message_received[2] == message_manager.OPCODE_BROADCAST_NOT_ME:
                     protocol_message = message_manager.protocol_message_encoding(
-                        user_sender, message_manager.OPCODE_BROADCAST, message_received[2], message_received[3])
+                        self.user_sender, message_manager.OPCODE_BROADCAST, message_received[2], message_received[3])
                     self.server_sends(protocol_message)
                     continue
                 if message_received[2] == message_manager.OPCODE_LIST_CLIENTS and message_received[1] == "server":
                     protocol_message = message_manager.protocol_message_encoding(
-                        self.SERVER_ITSELF, user_sender, message_manager.OPCODE_LIST_CLIENTS, self.get_all_list())
+                        self.SERVER_ITSELF, self.user_sender, message_manager.OPCODE_LIST_CLIENTS, self.get_all_list())
                     self.server_sends(protocol_message)
                     continue
                 if message_received[2] == message_manager.OPCODE_EXIT_CLIENT:
-                    message_data = "client (" + user_sender + ") left"
+                    # Message sends to client before the client lefr
+                    message_data = "You are exiting the server"
+                    protocol_message = message_manager.protocol_message_encoding(
+                        self.SERVER_ITSELF, self.user_sender, message_manager.OPCODE_EXIT_CLIENT, message_data)
+                    self.server_sends(protocol_message)
+                    # Tell everyone that clients left
+                    message_data = "client (" + self.user_sender + ") left"
                     protocol_message = message_manager.protocol_message_encoding(
                         self.SERVER_ITSELF, message_manager.OPCODE_BROADCAST, message_manager.OPCODE_EXIT_CLIENT,
                         message_data)
                     self.server_sends(protocol_message)
-                    message_data = "You are exiting the server"
-                    protocol_message = message_manager.protocol_message_encoding(
-                        self.SERVER_ITSELF, user_sender, message_manager.OPCODE_EXIT_CLIENT, message_data)
-                    self.server_sends(protocol_message)
-                    self.remove_client(user_sender)
+                    # Finally removes it from connected clients
+                    self.remove_client(self.user_sender)
                     continue
-                if message_received[2] == message_manager.OPCODE_CLOSE_SERVER:
-                    if self.get_client_socket_by_name(user_sender, self.clients_moderators) != "not found":
-                        message_data = "server closed"
-                        self.close_server = True
-                    else:
-                        message_data = "You do not have enough permissions to execute that action!"
+                if message_received[2] == message_manager.OPCODE_VIDEO_CONFERENCE:
+                    if len(message_received) == 4:
                         protocol_message = message_manager.protocol_message_encoding(
-                            self.SERVER_ITSELF, user_sender, message_manager.OPCODE_PRIVATE_MESSAGE, message_data)
+                            message_received[0], message_received[1], message_received[2], message_received[3])
                         self.server_sends(protocol_message)
-                        continue
-                if message_received[2] == message_manager.OPCODE_VIDEO_CONFERENCE \
-                        and message_received[3] == message_manager.MESSAGE_REQUESTING:
-                    message_data = "Client " + message_received[0] + " is requesting a video conference"
-                    protocol_message = message_manager.protocol_message_encoding(
-                        message_received[0], message_received[1], message_received[2], message_data)
-                    self.server_sends(protocol_message)
+                    if len(message_received) < 4:
+                        protocol_message = message_manager.protocol_message_encoding(
+                            message_received[0], message_received[1], message_received[2])
+                        self.server_sends(protocol_message)
+                    else:
+                        pass
                     continue
             except socket.error as socket_error:
-                message_data = str(socket_error) + " | "
-                message_data += "client (" + user_sender + ") disconnected"
-                protocol_message = message_manager.protocol_message_encoding(
-                    self.SERVER_ITSELF, message_manager.OPCODE_BROADCAST, message_manager.OPCODE_BROADCAST,
-                    message_data)
+                message_data = str(socket_error) + " ; "
                 socket_client = self.get_client_socket_by_name(message_received[0], self.clients_connected)
-                self.remove_client(socket_client)
-                self.server_sends(protocol_message)
-                self.receive()
+                if socket_client:
+                    message_data += "client (" + self.user_sender + ") disconnected"
+                    protocol_message = message_manager.protocol_message_encoding(
+                        self.SERVER_ITSELF, self.SENDS_TO_ALL, message_manager.OPCODE_BROADCAST,
+                        message_data)
+                    self.server_sends(protocol_message)
+                    self.remove_client(socket_client)
                 break
         if self.close_server:
             self.log_file("Closing server...")
-            message_data += "\nUser (" + message_received[0] + ") closes the server."
+            message_data += "\n User (" + message_received[0] + ") closes the server."
             protocol_message = message_manager.protocol_message_encoding(
-                self.SERVER_ITSELF, message_manager.OPCODE_BROADCAST, message_manager.OPCODE_BROADCAST, message_data)
+                self.SERVER_ITSELF, self.SENDS_TO_ALL, message_manager.OPCODE_BROADCAST, message_data)
             self.server_sends(protocol_message)
-            time.sleep(2)
         self.server_checks()
 
     def on_button_run_stop_clicked(self, button):
