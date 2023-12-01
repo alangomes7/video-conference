@@ -11,6 +11,8 @@ __pycache__/
 *.exe
 *.o
 *.so
+*.spec
+*.glade#
 
 # Executables
 *.out
