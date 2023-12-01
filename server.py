@@ -13,6 +13,9 @@ from gi.repository import Gtk, GLib
 
 
 class ServerInterface:
+    """
+    This class has an interface and controls all connections.
+    """
     def __init__(self):
         self.builder = Gtk.Builder()
         self.builder.add_from_file("server_gui.glade")
@@ -46,13 +49,23 @@ class ServerInterface:
         self.create_folder(self.FOLDER_PATH)
 
     def on_main_window_destroy(self, window):
+        """
+        Closes the server
+        """
         Gtk.main_quit()
 
     def close_interface(self):
-        time.sleep(3)
+        """
+        Close interface and the server
+        """
+        time.sleep(3) # sleep used to see updates on interface
         Gtk.main_quit()
 
     def create_folder(self,folder_path):
+        """
+        Creates a folder to save all log messages.
+        :param folder_path: folder to create.
+        """
         try:
             if os.path.exists(folder_path):
                 pass
@@ -63,6 +76,10 @@ class ServerInterface:
             print("error log file")
 
     def get_time(self, spaces=True):
+        """
+        Gets currently time to log messages
+        :param spaces: indicates if should include spaces or not.
+        """
         # Get the current time
         current_time = datetime.now()
         formatted_time = ""
@@ -75,6 +92,10 @@ class ServerInterface:
         return formatted_time
 
     def save_log_file(self, log_message):
+        """
+        Save logs messages into file.
+        :param log_message: log message to save.
+        """
         try:
             # writing log file
             with open(self.LOG_FILE_NAME, 'a') as file:
@@ -83,16 +104,29 @@ class ServerInterface:
             print(e)
 
     def update_log_interface(self, log_message):
+        """
+        Prints on interface log message
+        :param log_message: log to print on interface.
+        """
         # showing message on ui
         end_iter = self.textbuffer.get_end_iter()
         self.textbuffer.insert(end_iter, log_message + "\n")
 
     def log_file(self, log_message):
+        """
+        Save log file and prints on interface.
+        :param log_message: log message to print and save.
+        """
         log_message_with_time = self.get_time() + " - " + str(log_message)
         GLib.idle_add(self.save_log_file, log_message_with_time)
         GLib.idle_add(self.update_log_interface, log_message_with_time)
 
     def message_confirmation(self, user_sender, message_code):
+        """
+        Sends the message confirmation to client indicating that server has received the send message.
+        :param user_sender: user that sent the message.
+        :param message_code: the code of message.
+        """
         if message_code in (message_manager.OPCODE_PRIVATE_MESSAGE, message_manager.OPCODE_BROADCAST_NOT_ME):
             self.server_sends(message_manager.protocol_message_encoding(
                 self.SERVER_ITSELF, user_sender, message_manager.OPCODE_MESSAGE_CONFIRMATION, "message sent"))
@@ -120,7 +154,7 @@ class ServerInterface:
             self.log_file("Server closed\n")
         else:
             self.log_file(socket_error)
-            self.log_file("Restarting the server...\n")
+            self.log_file("Restarting the server...\nServer restarted.\n --------------\n")
             self.server_listen()
 
     def get_client_socket_by_name(self, client_name, client_list):
@@ -190,7 +224,7 @@ class ServerInterface:
         """
         socket_connecting = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
         host = self.get_local_ip()
-        port = 1234
+        port = 5500
         try:
             self.log_file("Connection attempt...")
             socket_connecting.bind((host, port))
@@ -204,6 +238,9 @@ class ServerInterface:
             return None
 
     def server_listen(self):
+        """
+        The main function. Makes the server await for new messages and send the message to be processed.
+        """
         while not self.close_server:
             try:
                 socket_client, address = self.socket_server.accept()
@@ -243,6 +280,10 @@ class ServerInterface:
         self.server_checks()
 
     def handle_client(self, client):
+        """
+        Process the messages received.
+        :param client: client that sends the messages.
+        """
         message_received = ["", "", "", ""]
         message_data = ""
         while not self.close_server:
@@ -284,7 +325,7 @@ class ServerInterface:
                     self.server_sends(protocol_message)
                     continue
                 if message_received[2] == message_manager.OPCODE_EXIT_CLIENT:
-                    # Message sends to client before the client lefr
+                    # Message sends to client before the client left
                     message_data = "You are exiting the server"
                     protocol_message = message_manager.protocol_message_encoding(
                         self.SERVER_ITSELF, self.user_sender, message_manager.OPCODE_EXIT_CLIENT, message_data)
@@ -300,13 +341,13 @@ class ServerInterface:
                     continue
                 elif message_received[2] in (
                         message_manager.OPCODE_VIDEO_CONFERENCE, message_manager.OPCODE_CLIENT_ADDRESS_REQUEST,
-                        message_manager.OPCODE_CLIENT_ADDRESS_SEND):
+                        message_manager.OPCODE_CLIENT_ADDRESS_SEND, message_manager.OPCODE_CLIENT_AVAILABLE):
                     protocol_message = message_manager.protocol_message_encoding(
                         message_received[0], message_received[1], message_received[2], message_received[3])
                     self.server_sends(protocol_message)
                     continue
             except socket.error as socket_error:
-                message_data = str(socket_error) + " ; "
+                message_data = str(socket_error) + " \n; "
                 socket_client = self.get_client_socket_by_name(message_received[0], self.clients_connected)
                 if socket_client:
                     message_data += "client (" + self.user_sender + ") disconnected"
@@ -314,7 +355,7 @@ class ServerInterface:
                         self.SERVER_ITSELF, self.SENDS_TO_ALL, message_manager.OPCODE_BROADCAST,
                         message_data)
                     self.server_sends(protocol_message)
-                    self.remove_client(socket_client)
+                    self.remove_client(message_received[0])
                 break
         if self.close_server:
             self.log_file("Closing server...")
@@ -325,6 +366,10 @@ class ServerInterface:
         self.server_checks()
 
     def on_button_run_stop_clicked(self, button):
+        """
+        Receive the signal to start the server.
+        :param button: button 'start'.
+        """
         if not self.server_ran:
             self.socket_server = self.socket_connect()
             if not self.socket_server:
@@ -351,6 +396,9 @@ class ServerInterface:
                 pass
 
     def run(self):
+        """
+        Runs the server.
+        """
         self.window.show_all()
         Gtk.main()
 

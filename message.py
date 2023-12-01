@@ -1,4 +1,3 @@
-
 import socket
 
 # Code message operations
@@ -17,6 +16,7 @@ OPCODE_MESSAGE_CONFIRMATION = "message received"
 OPCODE_VIDEO_CONFERENCE = "video conference"
 OPCODE_CLIENT_ADDRESS_REQUEST = "request address"
 OPCODE_CLIENT_ADDRESS_SEND = "send address"
+OPCODE_CLIENT_AVAILABLE = "client available"
 
 # Message data
 MESSAGE_REQUESTING = "request connection"
@@ -24,6 +24,8 @@ MESSAGE_DECLINED = "connection declined"
 MESSAGE_ACCEPTED = "connection accepted"
 MESSAGE_SERVER_CLOSED = "server closed"
 MESSAGE_YOU_LEAVING = "You are exiting the server"
+MESSAGE_SERVER_OPEN = "server open"
+MESSAGE_CLIENT_CONNECTED = "client connected"
 
 
 def protocol_message_encoding(x, y, fx, data="no data"):
@@ -111,21 +113,13 @@ def send_server_message_broadcast(protocol_message, clients_connected):
         send_message(protocol_message, client_connected)
 
 
-def is_socket_closed(sock):
-    try:
-        # This will retrieve the socket error, if any
-        error_code = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
-        return error_code == 0
-    except socket.error:
-        # An error occurred, so the socket is likely closed
-        return False
-
-
 def send_message(protocol_message, sock):
+    """
+    Sends the message and handle if message was not sent.
+    """
     try:
         # This will retrieve the socket error, if any
         message_code = sock.send(protocol_message)
         return message_code
     except socket.error:
         print("Socket closed.")
-
