@@ -16,11 +16,12 @@ class ServerInterface:
     """
     This class has an interface and controls all connections.
     """
+
     def __init__(self):
         self.builder = Gtk.Builder()
-        self.builder.add_from_file("server_gui.glade")
+        self.builder.add_from_file(".\server_gui.glade")
         self.textview_logs = self.builder.get_object("text_view_logs")
-        self.textbuffer = self.textview_logs.get_buffer()
+        self.text_buffer = self.textview_logs.get_buffer()
         self.button_run_stop = self.builder.get_object("button_run_stop")
         self.button_run_stop.connect("clicked", self.on_button_run_stop_clicked)
         self.window = self.builder.get_object("window_main")
@@ -58,10 +59,10 @@ class ServerInterface:
         """
         Close interface and the server
         """
-        time.sleep(3) # sleep used to see updates on interface
+        time.sleep(3)  # sleep used to see updates on interface
         Gtk.main_quit()
 
-    def create_folder(self,folder_path):
+    def create_folder(self, folder_path):
         """
         Creates a folder to save all log messages.
         :param folder_path: folder to create.
@@ -78,7 +79,7 @@ class ServerInterface:
     def get_time(self, spaces=True):
         """
         Gets currently time to log messages
-        :param spaces: indicates if should include spaces or not.
+        :param spaces: indicates if it should include spaces or not.
         """
         # Get the current time
         current_time = datetime.now()
@@ -109,8 +110,8 @@ class ServerInterface:
         :param log_message: log to print on interface.
         """
         # showing message on ui
-        end_iter = self.textbuffer.get_end_iter()
-        self.textbuffer.insert(end_iter, log_message + "\n")
+        end_iter = self.text_buffer.get_end_iter()
+        self.text_buffer.insert(end_iter, log_message + "\n")
 
     def log_file(self, log_message):
         """
