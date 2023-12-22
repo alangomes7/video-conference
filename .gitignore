@@ -30,7 +30,7 @@ venv/
 env/
 
 # Log messages
-logs/
+source_files/py/logs/
 
 # build folder
 build/

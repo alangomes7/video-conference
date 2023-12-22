@@ -1,10 +1,10 @@
+ui_server_glade = """
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
-  <object class="GtkTextBuffer" id="textbuffer_clients_list"/>
-  <object class="GtkTextBuffer" id="textbuffer_logs"/>
-  <object class="GtkWindow" id="window_main">
+  <object class="GtkTextBuffer" id="text_view_buffer"/>
+  <object class="GtkWindow" id="main_window">
     <property name="can-focus">False</property>
     <property name="resizable">False</property>
     <signal name="destroy" handler="on_main_window_destroy" swapped="no"/>
@@ -69,7 +69,7 @@
                 <property name="width-request">0</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="buffer">textbuffer_logs</property>
+                <property name="buffer">text_view_buffer</property>
               </object>
             </child>
           </object>
@@ -81,5 +81,6 @@
       </object>
     </child>
   </object>
-  <object class="GtkTextBuffer" id="textbuffer_textView_clients_number"/>
 </interface>
+
+"""
