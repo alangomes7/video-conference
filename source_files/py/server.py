@@ -1,3 +1,4 @@
+import asyncio
 import threading
 import socket
 import time
@@ -14,6 +15,75 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
 
 
+def create_folder(folder_path):
+    """
+    Creates a folder to save all log messages.
+    :param folder_path: folder to create.
+    """
+    try:
+        if os.path.exists(folder_path):
+            pass
+        else:
+            # Create a folder at the specified path
+            os.makedirs(folder_path)
+    except OSError as e:
+        print("error log file")
+
+
+def get_time(spaces=True):
+    """
+    Gets currently time to log messages
+    :param spaces: indicates if it should include spaces or not.
+    """
+    # Get the current time
+    current_time = datetime.now()
+    formatted_time = ""
+
+    # Format the time as a string
+    if spaces:
+        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        formatted_time = current_time.strftime("%Y-%m-%d_%H-%M-%S")
+    return formatted_time
+
+
+def on_main_window_destroy(window):
+    """
+    Closes the server
+    """
+    Gtk.main_quit()
+
+
+def close_interface():
+    """
+    Close interface and the server
+    """
+    time.sleep(3)  # sleep used to see updates on interface
+    Gtk.main_quit()
+
+
+def get_client_socket_by_name(client_name, client_list):
+    """
+    Function to search for a client by name.
+    :param client_name: client_name
+    :param client_list: list of clients
+    :return: the client obj or "Not found"
+    """
+    client_socket = client_list.get(client_name, "not found")
+    return client_socket
+
+
+def dict_empty(dict_clients):
+    """Verify is dict is empty
+    :param: dict_clients: dict to verify
+    :return: True if empty else False
+    """
+    if not dict_clients:
+        return True
+    else:
+        return False
+
+
 class ServerInterface(Gtk.Window):
     """
     This class has an interface and controls all connections.
@@ -27,16 +97,15 @@ class ServerInterface(Gtk.Window):
         self.button_run_stop = self.builder.get_object("button_run_stop")
         self.button_run_stop.connect("clicked", self.on_button_run_stop_clicked)
         self.window = self.builder.get_object("main_window")
-        self.window.connect("destroy", self.on_main_window_destroy)
+        self.window.connect("destroy", on_main_window_destroy)
 
         # Main variables
         self.BUFFER_SIZE = 1024
         self.SERVER_ITSELF = "Server"
         self.SENDS_TO_ALL = "All clients"
         self.FOLDER_PATH = "logs/"
-        self.LOG_FILE_NAME = self.FOLDER_PATH + "log_" + self.get_time(False) + ".txt"
+        self.LOG_FILE_NAME = self.FOLDER_PATH + "log_" + get_time(False) + ".txt"
         self.socket_server = None
-        self.thread_server_listening = None
         self.user_sender = None
 
         # database
@@ -44,55 +113,11 @@ class ServerInterface(Gtk.Window):
         """dictionary with all clients connected"""
 
         # Running control
-        self.close_server = False
-        self.close_button_pressed = False
-        self.server_ran = False
+        self.server_running = False
+        self.thread_server_listening = None
 
         # creating folder to logs
-        self.create_folder(self.FOLDER_PATH)
-
-    def on_main_window_destroy(self, window):
-        """
-        Closes the server
-        """
-        Gtk.main_quit()
-
-    def close_interface(self):
-        """
-        Close interface and the server
-        """
-        time.sleep(3)  # sleep used to see updates on interface
-        Gtk.main_quit()
-
-    def create_folder(self, folder_path):
-        """
-        Creates a folder to save all log messages.
-        :param folder_path: folder to create.
-        """
-        try:
-            if os.path.exists(folder_path):
-                pass
-            else:
-                # Create a folder at the specified path
-                os.makedirs(folder_path)
-        except OSError as e:
-            print("error log file")
-
-    def get_time(self, spaces=True):
-        """
-        Gets currently time to log messages
-        :param spaces: indicates if it should include spaces or not.
-        """
-        # Get the current time
-        current_time = datetime.now()
-        formatted_time = ""
-
-        # Format the time as a string
-        if spaces:
-            formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            formatted_time = current_time.strftime("%Y-%m-%d_%H-%M-%S")
-        return formatted_time
+        create_folder(self.FOLDER_PATH)
 
     def save_log_file(self, log_message):
         """
@@ -120,7 +145,7 @@ class ServerInterface(Gtk.Window):
         Save log file and prints on interface.
         :param log_message: log message to print and save.
         """
-        log_message_with_time = self.get_time() + " - " + str(log_message)
+        log_message_with_time = get_time() + " - " + str(log_message)
         GLib.idle_add(self.save_log_file, log_message_with_time)
         GLib.idle_add(self.update_log_interface, log_message_with_time)
 
@@ -153,22 +178,12 @@ class ServerInterface(Gtk.Window):
         """
         Verify if the server was closed due to a client message or error
         """
-        if self.close_server:
-            self.log_file("Server closed\n")
-        else:
+        if self.server_running:
             self.log_file(socket_error)
-            self.log_file("Restarting the server...\nServer restarted.\n --------------\n")
-            self.server_listen()
-
-    def get_client_socket_by_name(self, client_name, client_list):
-        """
-        Function to search for a client by name.
-        :param client_name: client_name
-        :param client_list: list of clients
-        :return: the client obj or "Not found"
-        """
-        client_socket = client_list.get(client_name, "not found")
-        return client_socket
+            self.log_file("Restarting the server...\n"
+                          "Server restarted.\n "
+                          "--------------\n")
+            self.control_server()
 
     def get_all_list(self):
         """
@@ -198,16 +213,6 @@ class ServerInterface(Gtk.Window):
         if client_username in self.clients_connected:
             self.clients_connected.pop(client_username, -1)
 
-    def dict_empty(self, dict_clients):
-        """Verify is dict is empty
-        :param: dict_clients: dict to verify
-        :return: True if empty else False
-        """
-        if not dict_clients:
-            return True
-        else:
-            return False
-
     def get_local_ip(self):
         """
         Function to get the local IP address.
@@ -229,22 +234,28 @@ class ServerInterface(Gtk.Window):
         host = self.get_local_ip()
         port = 5500
         try:
-            self.log_file("Connection attempt...")
-            socket_connecting.bind((host, port))
-            socket_connecting.listen(10)
-            self.log_file("Server is running and listening on (%s,%s)\n" % (host, port))
-            return socket_connecting
+            if not self.server_running:
+                self.log_file("Connection attempt...")
+                socket_connecting.bind((host, port))
+                socket_connecting.listen(10)
+                self.log_file("Server is running and listening on (%s,%s)\n" % (host, port))
+                return socket_connecting
+            else:
+                try:
+                    socket_connecting.bind((host, port))
+                except socket.error:
+                    return None
         except socket.error as e:
             self.log_file(f"Error: {e}")
             self.log_file("Server connection error on (%s,%s)" % (host, port))
-            self.close_server = True
+            self.server_running = True
             return None
 
     def server_listen(self):
         """
         The main function. Makes the server await for new messages and send the message to be processed.
         """
-        while not self.close_server:
+        while self.server_running:
             try:
                 socket_client, address = self.socket_server.accept()
                 protocol_message = message_manager.protocol_message_encoding("server", "client", "name")
@@ -256,7 +267,7 @@ class ServerInterface(Gtk.Window):
                 self.log_file(received_message)
 
                 client_username = received_message[3]
-                if self.get_client_socket_by_name(client_username, self.clients_connected) == "not found":
+                if get_client_socket_by_name(client_username, self.clients_connected) == "not found":
                     self.log_file("Connection established: (%s) -> %s" % (received_message[3], address))
                     self.add_client(client_username, socket_client)
 
@@ -268,7 +279,7 @@ class ServerInterface(Gtk.Window):
                     self.server_sends(message_protocol)
 
                     thread_handle_client = threading.Thread(
-                        target=self.handle_client, args=(socket_client,))
+                        target=self.handle_client, args=(socket_client,), daemon=True)
                     thread_handle_client.start()
                 else:
                     message_data = "This username (" + received_message[3] + ") is already taken.\n"
@@ -282,14 +293,14 @@ class ServerInterface(Gtk.Window):
                 break
         self.server_checks()
 
-    def handle_client(self, client):
+    async def handle_client(self, client):
         """
         Process the messages received.
         :param client: client that sends the messages.
         """
         message_received = ["", "", "", ""]
         message_data = ""
-        while not self.close_server:
+        while not self.server_running:
             try:
                 message_received = message_manager.protocol_message_decoding(client.recv(self.BUFFER_SIZE))
                 if message_received[0] == "":
@@ -351,7 +362,7 @@ class ServerInterface(Gtk.Window):
                     continue
             except socket.error as socket_error:
                 message_data = str(socket_error) + " \n; "
-                socket_client = self.get_client_socket_by_name(message_received[0], self.clients_connected)
+                socket_client = get_client_socket_by_name(message_received[0], self.clients_connected)
                 if socket_client:
                     message_data += "client (" + self.user_sender + ") disconnected"
                     protocol_message = message_manager.protocol_message_encoding(
@@ -360,7 +371,7 @@ class ServerInterface(Gtk.Window):
                     self.server_sends(protocol_message)
                     self.remove_client(message_received[0])
                 break
-        if self.close_server:
+        if self.server_running:
             self.log_file("Closing server...")
             message_data += "\n User (" + message_received[0] + ") closes the server."
             protocol_message = message_manager.protocol_message_encoding(
@@ -373,30 +384,31 @@ class ServerInterface(Gtk.Window):
         Receive the signal to start the server.
         :param button: button 'start'.
         """
-        if not self.server_ran:
+        if not self.server_running:
             self.socket_server = self.socket_connect()
             if not self.socket_server:
                 self.log_file("Socket not connected!\n")
-                self.close_server = True
             else:
-                self.button_run_stop.set_label("Close")
-                self.close_server = False
-                self.server_ran = True
-                self.thread_server_listening = threading.Thread(target=self.server_listen, args=(), daemon=True)
-                self.thread_server_listening.start()
-
+                self.server_running = True
+                run_server = threading.Thread(target=self.control_server, args=())
+                run_server.start()
+                self.button_run_stop.set_label("Close server")
         else:
-            if not self.close_button_pressed:
-                self.close_button_pressed = True
-                self.button_run_stop.set_label("Closing...")
-                self.log_file("Stopping...")
-                self.close_server = True
-                if self.thread_server_listening:
-                    self.log_file("Closing the program...")
-                    thread_close = threading.Thread(target=self.close_interface, args=())
-                    thread_close.start()
-            else:
-                pass
+            time.sleep(4)
+            self.button_run_stop.set_label("Start server")
+            self.server_running = False
+
+    def control_server(self):
+        self.thread_server_listening = threading.Thread(target=self.server_listen, args=(), daemon=True)
+        self.thread_server_listening.start()
+        while self.server_running:
+            pass
+        time.sleep(2)
+        # Forcing socket to disallow further sends and receives
+        self.socket_server.shutdown(socket.SHUT_RDWR)
+        # Closing socket
+        self.socket_server.close()
+        self.log_file("Server stopped.\n")
 
     def run(self):
         """

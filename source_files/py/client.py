@@ -439,9 +439,7 @@ async def user_menu():
     Async method to avoid input blocking on menu.
     """
     if run_menu:
-        user_input_task = asyncio.create_task(client_send())
-        # thread_send = threading.Thread(target=client_send)
-        # thread_send.start()
+        asyncio.create_task(client_send())
         await asyncio.sleep(1)
     else:
         print("Operation deactivated menu")
