@@ -2,7 +2,7 @@
 import socket
 from datetime import datetime
 import os
-import message as message_manager
+import message_handle as message_manager
 
 import gi
 
@@ -22,15 +22,11 @@ def create_folder(folder_path):
         print("Error creating log folder")
 
 
-def get_time(spaces=True):
-    """Gets the current time to log messages. :param spaces: default is True. That means the log will include spaces
-    to separate date and time. Otherwise, is used (_) underscore."""
+def get_time():
+    """Gets the current time to log messages in a list. [0] = time without blank spaces, [1] = time with blank
+    spaces"""
     current_time = datetime.now()
-    formatted_time = ""
-    if spaces:
-        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-    else:
-        formatted_time = current_time.strftime("%Y-%m-%d_%H-%M-%S")
+    formatted_time = [current_time.strftime("%Y-%m-%d_%H-%M-%S"), current_time.strftime("%Y-%m-%d %H:%M:%S")]
     return formatted_time
 
 
@@ -72,8 +68,8 @@ def log_file(log_message, log_file_name, text_buffer):
     :param log_message: log message to be printed on screen and saved on log file.
     :param log_file_name: log file name to save messages.
     :param text_buffer: text buffer by interface."""
-    GLib.idle_add(save_log_file, log_message, log_file_name)
-    GLib.idle_add(update_log_interface, log_message, text_buffer)
+    GLib.idle_add(save_log_file, get_time()[0] + " - " + str(log_message), log_file_name)
+    GLib.idle_add(update_log_interface, get_time()[1] + " - " + str(log_message), text_buffer)
 
 
 def message_confirmation(user_sender, message_code, server_name):
@@ -137,7 +133,7 @@ def get_local_ip():
         return None
 
 
-def socket_connect(server_running, log_file_name, text_buffer):
+def socket_connect_server(server_running, log_file_name, text_buffer):
     """Function to create a socket and connect it.
     :param server_running: flag to indicate if the server is running or not.
     :param log_file_name: log file name to save messages.

@@ -1,7 +1,7 @@
 import threading
 import time
 
-from server_utils import *
+from utils import *
 from ui_files import ui_server_glade
 
 import gi
@@ -31,7 +31,7 @@ class ServerInterface(Gtk.Window):
         self.SERVER_ITSELF = "Server"
         self.SENDS_TO_ALL = "All clients"
         self.FOLDER_PATH = "logs/"
-        self.LOG_FILE_NAME = self.FOLDER_PATH + "log_" + get_time(False) + ".txt"
+        self.LOG_FILE_NAME = self.FOLDER_PATH + "log_" + get_time()[0] + ".txt"
         self.socket_server = None
         self.user_sender = None
         self.clients_connected = {}
@@ -57,7 +57,7 @@ class ServerInterface(Gtk.Window):
     def on_button_run_stop_clicked(self, button):
         """Handles the click event of the 'Run/Stop' button."""
         if not self.server_running:
-            self.socket_server = socket_connect(self.server_running, self.LOG_FILE_NAME, self.text_buffer)
+            self.socket_server = socket_connect_server(self.server_running, self.LOG_FILE_NAME, self.text_buffer)
             if not self.socket_server:
                 log_file("Socket not connected!\n", self.LOG_FILE_NAME, self.text_buffer)
             else:
