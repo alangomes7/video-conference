@@ -1,7 +1,7 @@
 import threading
 import time
 
-from utils import *
+from server_utils import *
 from ui_files import ui_client_glade, ui_test
 from message_buffer import MessageBuffer
 
@@ -98,6 +98,8 @@ class ClientInterface(Gtk.Window):
             host = self.get_message_client()
             port = 5500
             try:
+                if "." not in host:
+                    raise socket.error("Invalid address!")
                 # Time out necessary to connect to a specific ip
                 socket_connecting.connect((host, port))
                 # Removes time out. It needs to wait the user's input
@@ -106,11 +108,6 @@ class ClientInterface(Gtk.Window):
             except socket.error as e:
                 self.display_message_client(f"Error: {e}")
                 self.display_message_client("Client connection error on (%s,%s)" % (host, port))
-                self.display_message_client("n = to finish or any key to try again...\n")
-                user_client = self.get_message_client()
-                if user_client == "n":
-                    stop_client = True
-                    connecting = False
         return socket_connecting
 
 
