@@ -121,6 +121,7 @@ ui_client_glade = """
                 <property name="height-request">300</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
+                <property name="editable">False</property>
                 <property name="buffer">user_log_view_text_buffer</property>
               </object>
             </child>

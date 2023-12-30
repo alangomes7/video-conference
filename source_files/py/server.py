@@ -37,7 +37,7 @@ class ServerInterface(Gtk.Window):
         self.SERVER_ITSELF = "Server"
         self.SENDS_TO_ALL = "All clients"
         self.FOLDER_PATH = "logs/"
-        self.LOG_FILE_NAME = self.FOLDER_PATH + "log_" + get_time() + ".txt"
+        self.LOG_FILE_NAME = self.FOLDER_PATH + "log_" + get_time(False) + ".txt"
 
         # Define variables
         self.socket_server = None
@@ -148,8 +148,8 @@ class ServerInterface(Gtk.Window):
         try:
             while self.server_running:
                 socket_client, address = self.socket_server.accept()
-                self.server_utils.server_sends(
-                    message_manager.protocol_message_encoding("server", "client", "name"), socket_client,)
+                message = message_manager.protocol_message_encoding("server", "client", "name")
+                self.server_utils.server_sends(message, self.clients_connected, socket_client)
 
                 received_message = message_manager.protocol_message_decoding(socket_client.recv(self.BUFFER_SIZE))
                 if received_message[0] == "":
@@ -157,7 +157,7 @@ class ServerInterface(Gtk.Window):
                 self.server_utils.log_file(received_message)
 
                 client_username = received_message[3]
-                if self.get_client_socket_by_name(client_username) == "not found":
+                if get_client_socket_by_name(client_username, self.clients_connected) == "not found":
                     self.server_utils.log_file("Connection established: (%s) -> %s" % (received_message[3], address))
                     add_client(client_username, self.clients_connected, socket_client)
 

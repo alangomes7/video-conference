@@ -22,5 +22,5 @@ class MessageBuffer:
         """
         messages = []
         while not self.message_queue.empty():
-            messages.append(self.message_queue.get())
+            messages.extend([self.message_queue.get()])
         return messages

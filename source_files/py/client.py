@@ -1,11 +1,7 @@
-import threading
-import time
-
-from server_utils import *
-from ui_files import ui_client_glade, ui_test
-from message_buffer import MessageBuffer
-
 import gi
+
+from client_utils import *
+from ui_files import ui_client_glade
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
@@ -24,19 +20,12 @@ class ClientInterface(Gtk.Window):
         self.button_send = self.builder.get_object("user_button_send")
         self.window = self.builder.get_object("user_main_window")
 
+        # Client Utils
+        self.client_utils = ClientUtils(self.button_send,self.message_input, self.text_buffer)
+
         # Connect signals to callback functions
-        self.button_send.connect("clicked", self.on_button_send_press)
+        self.button_send.connect("clicked", self.client_utils.on_button_send_press)
         self.window.connect("delete-event", self.on_main_window_destroy)
-
-        # Create instances of MessageBuffer
-        self.message_buffer_sending = MessageBuffer()
-        self.message_buffer_receiving = MessageBuffer()
-
-        # Define constants and variables
-        self.stop_client = False
-        self.socket_client = None
-        self.run_menu = True
-        self.button_send_pressed = False
 
     def run(self):
         """Runs the client."""
@@ -47,68 +36,19 @@ class ClientInterface(Gtk.Window):
 
     def on_main_window_destroy(self, widget, event):
         """Handles the main window destroy event."""
-        return True
-
-    def on_button_send_press(self, button):
-        """Wait to the client press the button"""
-        self.button_send_pressed = True
-        return True
-
-    # Helper functions
-
-    def deactivate_user_input(self):
-        self.message_input.set_sensitive(False)
-        self.button_send.set_sensitive(False)
-        self.button_send_pressed = False
-
-    def activate_user_input(self):
-        self.message_input.set_text("")
-        self.message_input.set_sensitive(True)
-        self.button_send.set_sensitive(True)
-
-    def display_message_client(self, showing_message):
-        """Display messages on monitor.
-        :param showing_message: message to print to user."""
-        showing_message = get_time()[1] + " - " + showing_message
-        update_log_interface(showing_message, self.text_buffer)
-
-    def get_message_client(self):
-        """Get the input message."""
-        self.activate_user_input()
-        while not self.button_send_pressed:
-            pass
-        self.deactivate_user_input()
-        user_input = str(self.message_input.get_text())
-        self.display_message_client("user: "+user_input)
-        return user_input
+        self.client_utils.close_client_socket()
+        return False
 
     def run_client(self):
         time.sleep(2)
-        self.socket_client = self.socket_connect()
+        self.client_utils.display_message_client("Your username:")
+        self.client_utils.set_client_name( self.client_utils.get_message_client())
+        self.client_utils.set_client_socket(self.client_utils.socket_connect())
+        receive_messages_thread = threading.Thread(target=self.client_utils.client_receive, daemon=True)
+        receive_messages_thread.start()
+        while True:
+            pass
 
-    def socket_connect(self):
-        """
-        Creates a connection.
-        """
-        # new socket, family: Ipv4, type: TCP
-        socket_connecting = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        connecting = True
-        while connecting:
-            self.display_message_client("Please input the server's ip:\n")
-            host = self.get_message_client()
-            port = 5500
-            try:
-                if "." not in host:
-                    raise socket.error("Invalid address!")
-                # Time out necessary to connect to a specific ip
-                socket_connecting.connect((host, port))
-                # Removes time out. It needs to wait the user's input
-                socket_connecting.settimeout(None)
-                connecting = False
-            except socket.error as e:
-                self.display_message_client(f"Error: {e}")
-                self.display_message_client("Client connection error on (%s,%s)" % (host, port))
-        return socket_connecting
 
 
 # Main Function
